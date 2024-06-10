@@ -214,9 +214,13 @@ void PSMNode::scanCallback(const sensor_msgs::LaserScan& scan)
   tf::Transform change;
   change.setIdentity();
 
+  ROS_DEBUG("AAA");
+
+
   // what odometry model to use
   if (useTfOdometry_) 
   {
+    ROS_DEBUG("TFODOMAAA");
     // get the current position of the base in the world frame
     // if no transofrm is available, we'll use the last known transform
 
@@ -225,6 +229,7 @@ void PSMNode::scanCallback(const sensor_msgs::LaserScan& scan)
   }
   else if (useImuOdometry_)
   {
+    ROS_DEBUG("IMUODOMAAA");
     imuMutex_.lock();
     double dTheta = currImuAngle_ - prevImuAngle_;
     prevImuAngle_ = currImuAngle_;
@@ -235,17 +240,22 @@ void PSMNode::scanCallback(const sensor_msgs::LaserScan& scan)
   PMScan * currPMScan = new PMScan(scan.ranges.size());
   rosToPMScan(scan, change, currPMScan);
   
+  ROS_DEBUG("AAAB");
   try
   {         
     matcher_.pm_psm(prevPMScan_, currPMScan);                         
   }
   catch(int err)
   {
+    ROS_DEBUG("AAAC");
     ROS_WARN("Error in scan matching");
     delete prevPMScan_;
     prevPMScan_ = currPMScan;
     return;
   };    
+
+  ROS_DEBUG("AAB");
+
 
   // **** calculate change in position
 
@@ -264,6 +274,8 @@ void PSMNode::scanCallback(const sensor_msgs::LaserScan& scan)
   
   // **** publish the new estimated pose as a tf
    
+  ROS_DEBUG("AAC");
+
   currWorldToBase = prevWorldToBase_ * baseToLaser_ * change * laserToBase_;
 
   if (publishTf_  ) publishTf  (currWorldToBase, scan.header.stamp);
@@ -276,6 +288,8 @@ void PSMNode::scanCallback(const sensor_msgs::LaserScan& scan)
   prevWorldToBase_ = currWorldToBase;
 
   // **** timing information - needed for profiling only
+
+  ROS_DEBUG("AAD");
 
   gettimeofday(&end, NULL);
   double dur = ((end.tv_sec   * 1000000 + end.tv_usec  ) - 

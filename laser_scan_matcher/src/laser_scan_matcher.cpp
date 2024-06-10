@@ -184,7 +184,7 @@ void LaserScanMatcher::initParams()
   if (!nh_private_.getParam ("use_odom", use_odom_))
     use_odom_ = true;
   if (!nh_private_.getParam ("use_tf", use_tf_))
-    use_tf_ = true;
+    use_tf_ = true;  // use_tf_ = true;    POSSO FAZER ISTO???
   if (!nh_private_.getParam ("tf_timeout", tf_timeout_))
     tf_timeout_ = 0.1;
   if (!nh_private_.getParam ("use_vel", use_vel_))
@@ -834,6 +834,7 @@ tf::Transform LaserScanMatcher::getPrediction(const ros::Time& stamp)
   if (use_tf_)
   {
     tf::StampedTransform pred_last_base_offset_tf;
+    // ROS_INFO("base_frame: %s, fixed_frame_: %s, last_icp_time: %d, stamp: %d", base_frame_.c_str(), fixed_frame_.c_str(), last_icp_time_.sec, stamp);
     try
     {
       tf_listener_.waitForTransform(base_frame_, last_icp_time_, base_frame_, stamp, fixed_frame_, ros::Duration(tf_timeout_));
@@ -845,7 +846,6 @@ tf::Transform LaserScanMatcher::getPrediction(const ros::Time& stamp)
       ROS_WARN("Could not get base to fixed frame transform, %s", ex.what());
     }
   }
-
   return pred_last_base_offset;
 }
 

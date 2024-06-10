@@ -58,6 +58,8 @@ TODO: change the time measurement approach; do a proper cleanup. have doxygen co
     Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 ****************************************************************************/
 
+#include <ros/ros.h>
+
 #include "polar_scan_matcher/polar_match.h"
 
 using namespace std;
@@ -515,6 +517,8 @@ PM_TYPE PolarMatcher::pm_psm_c ( PMScan *lsr,PMScan *lsa )
 // fits a parabola to the error when searching for the angle and interpolates.
 PM_TYPE PolarMatcher::pm_psm ( PMScan *lsr,PMScan *lsa )
 {
+  ROS_DEBUG("AAAB1");
+
   PMScan    act(PM_L_POINTS),  ref(PM_L_POINTS);//copies of actual and reference scans
   PM_TYPE   rx,ry,rth,ax,ay,ath;//robot pos at ref and actual scans
   PM_TYPE   t13,t23;
@@ -545,19 +549,24 @@ PM_TYPE PolarMatcher::pm_psm ( PMScan *lsr,PMScan *lsa )
   iter = -1;
   while ( ++iter<PM_MAX_ITER && small_corr_cnt<3 ) //has to be 5 small corrections before stop
   {
+//    ROS_DEBUG("AAAB1 iter %d", iter);
     if ( ( fabs ( dx ) +fabs ( dy ) +fabs ( dth ) ) <PM_STOP_COND )
       small_corr_cnt++;
     else
       small_corr_cnt=0;
 
     act.rx = ax;act.ry = ay;act.th = ath;
+//    ROS_DEBUG("AAAB1 iter %d scan_project", iter);
     pm_scan_project(&act,  new_r, new_bad);
+//    ROS_DEBUG("AAAB1 iter %d scan_project end", iter);
 
     //---------------ORIENTATION SEARCH-----------------------------------
     //search for angle correction using crosscorrelation
     if ( iter%2 ==1 )
     {
+       ROS_DEBUG("AAAB1 iter %d orientation_search", iter);
        dth = pm_orientation_search(&ref, new_r, new_bad);
+       ROS_DEBUG("AAAB1 iter %d orientation_search end", iter);
        ath += dth;
        continue;
     }
@@ -567,7 +576,9 @@ PM_TYPE PolarMatcher::pm_psm ( PMScan *lsr,PMScan *lsa )
     if ( iter>10 )
       C = 100;
 
+    ROS_DEBUG("AAAB1 iter %d translation", iter);
     avg_err = pm_translation_estimation(&ref, new_r, new_bad, C, &dx, &dy);
+    ROS_DEBUG("AAAB1 iter %d translation end", iter);
 
     ax += dx;
     ay += dy;
@@ -577,6 +588,7 @@ PM_TYPE PolarMatcher::pm_psm ( PMScan *lsr,PMScan *lsa )
   }//while iter
 
   lsa->rx =ax;lsa->ry=ay;lsa->th=ath;
+  ROS_DEBUG("AAAB END");
   return ( avg_err);
 }//pm_linearized_match_int_angle
 
@@ -721,28 +733,43 @@ PM_TYPE PolarMatcher::pm_orientation_search(const PMScan *ref, const PM_TYPE *ne
       int       window       = PM_SEARCH_WINDOW;//20;//+- width of search for correct orientation
       PM_TYPE   dth=0;//\actual scan corrections
 
+      ROS_DEBUG("AAABo");
+
+
       //pm_fi,ref.r - reference points
       PM_TYPE e,err[PM_L_POINTS];       // the error rating
       PM_TYPE beta[PM_L_POINTS];// angle for the corresponding error
       PM_TYPE n;
       int k=0;
 
+      ROS_DEBUG("AAABo for %d", PM_L_POINTS);
       for ( int di=-window;di<=window;di++ )
       {
         n=0;e=0;
+        ROS_DEBUG("AAABo for di %d",di);
 
         int min_i,max_i;
         if ( di<=0 )
           {min_i = -di;max_i=PM_L_POINTS;}
         else
           {min_i = 0;max_i=PM_L_POINTS-di;}
+        
+        ROS_DEBUG("AAABo for min_i %d max_i %d di+min_i %d di+max_i",min_i,max_i,di+min_i,di+max_i);
 
         for ( i=min_i;i<max_i;i++ ) //searching through the actual points
         {
+          //ROS_DEBUG("AAABo for di %d i %d",di,i);
           //if fi[i],r[i] isn't viewed from the back, isn't moving
           // and isn't a solitary point, then try to associate it ..
           //also fi[i] is within the angle range ...
 
+/*
+          ROS_DEBUG("AAABo for newbad i %p",new_bad);
+          ROS_DEBUG("AAABo for newbad i %lf",new_bad[i]);
+          ROS_DEBUG("AAABo for bad i+di %lf",ref->bad[i+di]);
+          ROS_DEBUG("AAABo for new_r i %lf",new_r[i]);
+          ROS_DEBUG("AAABo for r i+di %lf",ref->r[i+di]);
+          */
           if ( !new_bad[i] && !ref->bad[i+di] )
           {
             e += fabs ( new_r[i]-ref->r[i+di] );
@@ -751,6 +778,7 @@ PM_TYPE PolarMatcher::pm_orientation_search(const PMScan *ref, const PM_TYPE *ne
 
         }//for i
 
+        ROS_DEBUG("AAABo end for i k %d n %f",k,n);
         if ( n>0 )
           err[k]  = e/n;//don't forget to correct with n!
         else
@@ -758,6 +786,7 @@ PM_TYPE PolarMatcher::pm_orientation_search(const PMScan *ref, const PM_TYPE *ne
         beta[k] = di;
         k++;
       }//for dfi
+      ROS_DEBUG("AAABo for end");
 
       //now search for the global minimum
       //later I can make it more robust
@@ -772,12 +801,14 @@ PM_TYPE PolarMatcher::pm_orientation_search(const PMScan *ref, const PM_TYPE *ne
         }
       if ( err[imin]>=10000 )
       {
+        ROS_DEBUG("AAABo search failed");
         cerr <<"Polar Match: orientation search failed" <<err[imin]<<endl;
         throw 1;
       }
       dth = beta[imin]*PM_DFI;
 
       //interpolation
+      ROS_DEBUG("AAABo interpolation");
       if ( imin>=1 && imin< ( k-1 ) ) //is it not on the extreme?
       {
         //lets try interpolation
